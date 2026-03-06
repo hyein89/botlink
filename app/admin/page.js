@@ -42,7 +42,7 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        setResult(`Sukses! Link kamu: https://${stringAcak}.tes.eu.org`);
+        setResult(`Sukses! Link kamu: https://${stringAcak}.sekonlive.eu.org`);
         e.target.reset();
       } else {
         setResult('Gagal menyimpan ke database. Cek koneksi Vercel-Supabase.');
