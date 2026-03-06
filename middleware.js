@@ -19,7 +19,7 @@ export async function middleware(request) {
   const path = url.pathname;
 
   // Lewati file sistem Next.js dan halaman utama (/)
-  if (path.startsWith('/_next') || path.includes('.') || path === '/') {
+  if (path.startsWith('/_next') || path.includes('.') || path === '/' || path.startsWith('/admin')) {
     return NextResponse.next();
   }
 
