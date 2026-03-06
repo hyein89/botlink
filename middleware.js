@@ -18,8 +18,8 @@ export async function middleware(request) {
   const path = url.pathname;
   const hostname = request.headers.get('host') || ''; 
 
-  // Jangan cegat aset Next.js, halaman form admin, dan API
-  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin') || path.startsWith('/api')) {
+  // Jangan cegat aset Next.js, halaman form admin, API, dan halaman List
+  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin') || path.startsWith('/api') || path.startsWith('/list')) {
     return NextResponse.next();
   }
 
