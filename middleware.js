@@ -47,6 +47,7 @@ export async function middleware(request) {
 
   if (!supabaseUrl || !supabaseKey) return NextResponse.next();
 
+  // Tarik data dari Supabase
   const res = await fetch(`${supabaseUrl}/rest/v1/links?string_acak=eq.${slug}&select=*`, {
     headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
   });
@@ -64,7 +65,6 @@ export async function middleware(request) {
   // --- TAHAP 1: Akses via Subdomain ---
   if (isStage1) {
     if (isBot(userAgent)) {
-      // Bot murni langsung dilempar ke Offer 2 tanpa embel-embel HTML
       return NextResponse.redirect(linkData.offer2_url, 301);
     } else {
       return NextResponse.redirect(`https://${domainAktif}/${slug}/${linkData.path_tambahan}`, 302);
@@ -83,17 +83,20 @@ export async function middleware(request) {
       }
 
       // =========================================================================
-      // 🔥 FIX HIT COUNT: PAKE "AWAIT" BIAR NUNGGU SUPABASE SELESAI NYATET
+      // 🔥 FIX HIT COUNT: PAKAI METODE "PATCH" LANGSUNG (DIJAMIN TEMBUS)
       // =========================================================================
       try {
-        await fetch(`${supabaseUrl}/rest/v1/rpc/increment_hit`, {
-          method: 'POST',
+        const angkaSekarang = linkData.hit_count || 0;
+        
+        await fetch(`${supabaseUrl}/rest/v1/links?id=eq.${linkData.id}`, {
+          method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json', 
             'apikey': supabaseKey, 
-            'Authorization': `Bearer ${supabaseKey}` 
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Prefer': 'return=minimal'
           },
-          body: JSON.stringify({ row_id: linkData.id })
+          body: JSON.stringify({ hit_count: angkaSekarang + 1 })
         });
       } catch (error) {
         console.log('Gagal update hit count');
