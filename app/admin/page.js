@@ -2,7 +2,7 @@
 import { useState } from 'react';
 // Narik file config.js dari folder luar (root)
 import { appConfig } from '../../config.js'; 
-
+import Link from 'next/link'; // Taruh di baris atas sendiri
 export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null); 
@@ -111,10 +111,11 @@ export default function AdminPage() {
           
           <div className="row" style={{ marginBottom: '20px' }}>
             <div className="col-md-6 col-md-offset-3 col-sm-8 col-sm-offset-2" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-default" style={{ borderRadius: '8px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid #ddd', color: '#555' }}>
-                <span className="material-icons notranslate" translate="no" style={{ fontSize: '18px' }}>format_list_bulleted</span>
-                List Link
-              </button>
+              // ... scroll ke bawah ke bagian tombol "List Link" ...
+<Link href="/list" className="btn btn-default" style={{ borderRadius: '8px', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '5px', border: '1px solid #ddd', color: '#555', textDecoration: 'none' }}>
+   <span className="material-icons notranslate" translate="no" style={{ fontSize: '18px' }}>format_list_bulleted</span>
+   List Link
+</Link>
             </div>
           </div>
 
