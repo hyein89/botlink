@@ -23,7 +23,7 @@ export async function middleware(request) {
   }
 
   // --- DETEKSI APAKAH INI SUBDOMAIN (stringacak) ATAU DOMAIN UTAMA ---
-  const isSubdomain = hostname.includes('.sekonlive.eu.org') && !hostname.startsWith('www.');
+  const isSubdomain = hostname.includes('.copbhghuytr.eu.org') && !hostname.startsWith('www.');
   let slug = null;
   let isStage1 = false;
 
@@ -76,7 +76,7 @@ export async function middleware(request) {
       return NextResponse.redirect(linkData.offer2_url, 301);
     } else {
       // Manusia ngeklik -> Ubah URL jadi panjang dan rapi
-      return NextResponse.redirect(`https://sekonlive.eu.org/${slug}/${linkData.path_tambahan}`, 302);
+      return NextResponse.redirect(`https://copbhghuytr.eu.org/${slug}/${linkData.path_tambahan}`, 302);
     }
   }
 
