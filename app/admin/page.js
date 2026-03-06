@@ -10,24 +10,30 @@ export default function AdminPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setResult('Sedang menarik judul otomatis dari Offer 2...');
+    setResult('Sedang memproses...');
 
     const stringAcak = generateString();
     const offer1Url = e.target.offer1Url.value;
     const offer2Url = e.target.offer2Url.value;
+    let pathTambahan = 'viral-video'; // Judul default kalau nge-bug
 
+    // 1. Usaha narik judul (Gagal gak apa-apa, gak bakal crash)
     try {
-      // 1. Eksekusi Tarik Judul
       const titleRes = await fetch('/api/get-title', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: offer2Url })
       });
-      const titleData = await titleRes.json();
-      const pathTambahan = titleData.title || 'promo-link';
+      if (titleRes.ok) {
+        const titleData = await titleRes.json();
+        if (titleData.title) pathTambahan = titleData.title;
+      }
+    } catch (err) {
+      console.log('Gagal narik judul, pakai default.');
+    }
 
-      setResult('Menyimpan ke database...');
-
-      // 2. Simpan ke Supabase
+    // 2. Simpan ke Supabase
+    try {
       const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
       const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -49,42 +55,28 @@ export default function AdminPage() {
       });
 
       if (res.ok) {
-        setResult(`BERHASIL!\n\nLink lu: https://${stringAcak}.sekonlive.eu.org\nNtar otomatis berubah jadi: https://sekonlive.eu.org/${pathTambahan}`);
+        setResult(`BERHASIL!\n\nLink Lo: https://${stringAcak}.sekonlive.eu.org\nNtar berubah jadi: https://sekonlive.eu.org/${stringAcak}/${pathTambahan}`);
         e.target.reset();
       } else {
-        setResult('Gagal nyimpen! Pastiin lo udah matiin RLS di Supabase pakai SQL.');
+        setResult('Gagal nyimpen ke database. RLS Supabase belum dimatikan atau koneksi salah.');
       }
     } catch (error) {
-      setResult('Terjadi kesalahan sistem atau jaringan.');
+      setResult('Gagal koneksi ke Vercel/Supabase.');
     }
     setLoading(false);
   };
 
   return (
-    <div style={{ padding: '40px', maxWidth: '600px', margin: '0 auto', fontFamily: 'system-ui' }}>
-      <h2>Buat Smart Link Baru</h2>
+    <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h2>Buat Link Baru</h2>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        
-        <div>
-          <label>Offer 1 URL (Target Sosmed - Manusia):</label><br/>
-          <input type="url" name="offer1Url" required style={{ width: '100%', padding: '8px' }} placeholder="https://google.com" />
-        </div>
-
-        <div>
-          <label>Offer 2 URL (Target Pancingan Bot & Sumber Judul):</label><br/>
-          <input type="url" name="offer2Url" required style={{ width: '100%', padding: '8px' }} placeholder="https://youtu.be/..." />
-        </div>
-
-        <button type="submit" disabled={loading} style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none', cursor: 'pointer' }}>
-          {loading ? 'Memproses Judul & Nyimpen...' : 'Generate Auto-Title & Simpan'}
+        <input type="url" name="offer1Url" required placeholder="Offer 1 URL (Target Sosmed)" style={{ padding: '10px' }} />
+        <input type="url" name="offer2Url" required placeholder="Offer 2 URL (Target Pancingan Bot)" style={{ padding: '10px' }} />
+        <button type="submit" disabled={loading} style={{ padding: '10px', background: 'blue', color: 'white' }}>
+          {loading ? 'Memproses...' : 'Generate & Simpan'}
         </button>
       </form>
-
-      {result && (
-        <div style={{ marginTop: '20px', padding: '15px', background: '#e0f7fa', color: '#006064', fontWeight: 'bold', whiteSpace: 'pre-line' }}>
-          {result}
-        </div>
-      )}
+      {result && <pre style={{ marginTop: '20px', background: '#eee', padding: '10px', whiteSpace: 'pre-wrap' }}>{result}</pre>}
     </div>
   );
 }
