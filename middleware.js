@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-// 1. KITA TARIK CONFIG DARI LUAR (ROOT)
 import { appConfig } from './config.js';
 
 const isBot = (userAgent) => {
@@ -19,13 +18,11 @@ export async function middleware(request) {
   const path = url.pathname;
   const hostname = request.headers.get('host') || ''; 
 
-  // Jangan cegat aset Next.js, halaman form admin, dan script penarik judul (API)
+  // Jangan cegat aset Next.js, halaman form admin, dan API
   if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin') || path.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // --- DETEKSI APAKAH INI SUBDOMAIN (stringacak) ATAU DOMAIN UTAMA ---
-  // 2. KITA PAKAI DOMAIN DARI CONFIG, JADI BUKAN HARDCODE LAGI
   const domainAktif = appConfig.DOMAIN;
   const isSubdomain = hostname.includes(`.${domainAktif}`) && !hostname.startsWith('www.');
   
@@ -33,32 +30,23 @@ export async function middleware(request) {
   let isStage1 = false;
 
   if (isSubdomain) {
-    // Kalau diakses dari stringacak.domain.com, ambil 'stringacak'
     slug = hostname.split('.')[0]; 
     isStage1 = true;
   } else {
-    // Kalau diakses dari domain.com/stringacak/title-offer2, ambil 'stringacak'
     const pathParts = path.split('/').filter(Boolean);
     if (pathParts.length > 0) {
       slug = pathParts[0];
     }
   }
 
-  // Kalau orang cuma buka web utama, biarin nampil Coming Soon
-  if (!isSubdomain && path === '/') {
-    return NextResponse.next();
-  }
-
-  // Kalau gak ada string acak sama sekali, biarin lewat
+  if (!isSubdomain && path === '/') return NextResponse.next();
   if (!slug) return NextResponse.next();
 
-  // Siapkan kunci Supabase
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) return NextResponse.next();
 
-  // Cocokin string acak (slug) ke Supabase
   const res = await fetch(`${supabaseUrl}/rest/v1/links?string_acak=eq.${slug}&select=*`, {
     headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
   });
@@ -66,7 +54,6 @@ export async function middleware(request) {
   const data = await res.json();
   const linkData = data && data.length > 0 ? data[0] : null;
 
-  // Kalau string acak ngasal / gak ada di database
   if (!linkData) {
     return new NextResponse('Link Tidak Ditemukan (404)', { status: 404 });
   }
@@ -74,41 +61,49 @@ export async function middleware(request) {
   const userAgent = request.headers.get('user-agent') || '';
   const referer = request.headers.get('referer') || '';
 
-  // --- TAHAP 1: Akses via Subdomain (Contoh: lk1d6j.domain.com) ---
+  // --- TAHAP 1: Akses via Subdomain ---
   if (isStage1) {
     if (isBot(userAgent)) {
-      // Bot sosmed datang -> Lempar ke YouTube biar Preview-nya muncul
+      // Bot murni langsung dilempar ke Offer 2 tanpa embel-embel HTML
       return NextResponse.redirect(linkData.offer2_url, 301);
     } else {
-      // Manusia ngeklik -> Ubah URL jadi panjang dan rapi (Pakai variabel domainAktif)
       return NextResponse.redirect(`https://${domainAktif}/${slug}/${linkData.path_tambahan}`, 302);
     }
   }
 
-  // --- TAHAP 2: Akses via Link Rapi (Contoh: domain.com/lk1d6j/title-offer2) ---
+  // --- TAHAP 2: Akses via Link Rapi ---
   if (!isSubdomain) {
     const pathParts = path.split('/').filter(Boolean);
     
     if (pathParts.length === 2) {
       const pathTambahan = pathParts[1];
       
-      // Keamanan: Kalau URL belakangnya diubah-ubah ngasal
       if (pathTambahan !== linkData.path_tambahan) {
          return new NextResponse('Link Tidak Ditemukan (404)', { status: 404 });
       }
 
-      // Nambahin Hit Count diam-diam
-      fetch(`${supabaseUrl}/rest/v1/rpc/increment_hit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` },
-        body: JSON.stringify({ row_id: linkData.id })
-      }).catch(() => {}); 
+      // =========================================================================
+      // 🔥 FIX HIT COUNT: PAKE "AWAIT" BIAR NUNGGU SUPABASE SELESAI NYATET
+      // =========================================================================
+      try {
+        await fetch(`${supabaseUrl}/rest/v1/rpc/increment_hit`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json', 
+            'apikey': supabaseKey, 
+            'Authorization': `Bearer ${supabaseKey}` 
+          },
+          body: JSON.stringify({ row_id: linkData.id })
+        });
+      } catch (error) {
+        console.log('Gagal update hit count');
+      }
 
       // Pemilahan Target Asli
       if (isSocialApp(userAgent, referer)) {
-        return NextResponse.redirect(linkData.offer1_url, 301); // Dari Sosmed ke Offer 1
+        return NextResponse.redirect(linkData.offer1_url, 301); 
       } else {
-        return NextResponse.redirect(linkData.offer2_url, 301); // Dari Browser ke Offer 2
+        return NextResponse.redirect(linkData.offer2_url, 301); 
       }
     }
   }
