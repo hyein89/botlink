@@ -18,11 +18,24 @@ export async function middleware(request) {
   const path = url.pathname;
   const hostname = request.headers.get('host') || ''; 
 
-  // Jangan cegat aset Next.js, halaman form admin, API, dan halaman List
-  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/admin') || path.startsWith('/api') || path.startsWith('/list')) {
+  // 1. BIARIN LEWAT UNTUK ASET SISTEM, API, DAN HALAMAN LOGIN
+  if (path.startsWith('/_next') || path.includes('.') || path.startsWith('/api') || path.startsWith('/login')) {
     return NextResponse.next();
   }
 
+  // 2. CEK KARCIS LOGIN UNTUK HALAMAN ADMIN & LIST
+  if (path.startsWith('/admin') || path.startsWith('/list')) {
+    const authCookie = request.cookies.get('auth_token');
+    
+    // Kalau nggak ada karcis (belum login), tendang ke halaman /login
+    if (!authCookie || authCookie.value !== 'admin_sah') {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    // Kalau ada karcis, silakan masuk
+    return NextResponse.next();
+  }
+
+  // ... (SISA KODE KE BAWAHNYA SAMA PERSIS SEPERTI SEBELUMNYA) ...
   const domainAktif = appConfig.DOMAIN;
   const isSubdomain = hostname.includes(`.${domainAktif}`) && !hostname.startsWith('www.');
   
@@ -47,7 +60,6 @@ export async function middleware(request) {
 
   if (!supabaseUrl || !supabaseKey) return NextResponse.next();
 
-  // Tarik data dari Supabase
   const res = await fetch(`${supabaseUrl}/rest/v1/links?string_acak=eq.${slug}&select=*`, {
     headers: { 'apikey': supabaseKey, 'Authorization': `Bearer ${supabaseKey}` }
   });
@@ -62,7 +74,6 @@ export async function middleware(request) {
   const userAgent = request.headers.get('user-agent') || '';
   const referer = request.headers.get('referer') || '';
 
-  // --- TAHAP 1: Akses via Subdomain ---
   if (isStage1) {
     if (isBot(userAgent)) {
       return NextResponse.redirect(linkData.offer2_url, 301);
@@ -71,7 +82,6 @@ export async function middleware(request) {
     }
   }
 
-  // --- TAHAP 2: Akses via Link Rapi ---
   if (!isSubdomain) {
     const pathParts = path.split('/').filter(Boolean);
     
@@ -82,12 +92,8 @@ export async function middleware(request) {
          return new NextResponse('Link Tidak Ditemukan (404)', { status: 404 });
       }
 
-      // =========================================================================
-      // 🔥 FIX HIT COUNT: PAKAI METODE "PATCH" LANGSUNG (DIJAMIN TEMBUS)
-      // =========================================================================
       try {
         const angkaSekarang = linkData.hit_count || 0;
-        
         await fetch(`${supabaseUrl}/rest/v1/links?id=eq.${linkData.id}`, {
           method: 'PATCH',
           headers: { 
@@ -102,7 +108,6 @@ export async function middleware(request) {
         console.log('Gagal update hit count');
       }
 
-      // Pemilahan Target Asli
       if (isSocialApp(userAgent, referer)) {
         return NextResponse.redirect(linkData.offer1_url, 301); 
       } else {
